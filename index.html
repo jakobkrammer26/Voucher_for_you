@@ -156,7 +156,7 @@
 
     <div class="container">
         <h1>Calliope Matrix</h1>
-        <div class="subtitle">Bluetooth Funk-Steuerung</div>
+        <div class="subtitle">Bluetooth Funk-Steuerung (Auto-Scan &amp; Zahlen)</div>
 
         <button id="connectBtn" class="btn-connect">🔵 Per Bluetooth verbinden</button>
 
@@ -189,14 +189,9 @@
     </div>
 
     <script>
-        // Nordics UART Service UUIDs für den Calliope
-        const UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-        const TX_CHAR_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
-
         let txCharacteristic;
         let signalInterval;
         let aktuellerModus = "0";
-        let audioCtx = null;
 
         const connectBtn = document.getElementById('connectBtn');
         const panel = document.getElementById('panel');
@@ -212,24 +207,42 @@
 
         connectBtn.addEventListener('click', async () => {
             try {
-                statusDiv.innerText = "Suche Calliope...";
+                statusDiv.innerText = "Scanne alle Geräte...";
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ namePrefix: 'BBC micro:bit' }, { namePrefix: 'Calliope' }],
-                    optionalServices: [UART_SERVICE_UUID]
+                    acceptAllDevices: true,
+                    optionalServices: [
+                        '6e400001-b5a3-f393-e0a9-e50e24dcca9e', // UART Service UUID
+                        'e95d93af-251d-470a-a062-fa1922dfa9a8'
+                    ]
                 });
 
-                statusDiv.innerText = "Verbinde mit Server...";
+                statusDiv.innerText = "Verbinde mit Gerät...";
                 const server = await device.gatt.connect();
                 
-                statusDiv.innerText = "Lade UART Service...";
-                const service = await server.getPrimaryService(UART_SERVICE_UUID);
-                txCharacteristic = await service.getCharacteristic(TX_CHAR_UUID);
+                statusDiv.innerText = "Suche verfügbare Dienste...";
+                const services = await server.getPrimaryServices();
+                
+                // Durchsuche alle gefundenen Dienste nach einem Kanal zum Schreiben
+                for (let service of services) {
+                    const characteristics = await service.getCharacteristics();
+                    for (let char of characteristics) {
+                        if (char.properties.write || char.properties.writeWithoutResponse) {
+                            txCharacteristic = char;
+                            break;
+                        }
+                    }
+                    if (txCharacteristic) break;
+                }
 
-                statusDiv.innerText = "STATUS: Per Funk verbunden!";
+                if (!txCharacteristic) {
+                    throw new Error("Kein passender Schreib-Kanal auf dem Calliope gefunden.");
+                }
+
+                statusDiv.innerText = "STATUS: Über Bluetooth verbunden!";
                 statusDiv.style.color = "#00ff87";
                 panel.style.display = "block";
                 connectBtn.style.display = "none";
-                laptopSprich("Funkverbindung steht.");
+                laptopSprich("Funkverbindung aktiv.");
             } catch (error) {
                 statusDiv.innerText = "Fehler: " + error.message;
                 statusDiv.style.color = "#f44336";
@@ -240,7 +253,6 @@
             if (txCharacteristic) {
                 try {
                     let encoder = new TextEncoder();
-                    // Wichtig: NewLine \n mitschicken, damit der Calliope das Ende erkennt
                     await txCharacteristic.writeValue(encoder.encode(text + '\n'));
                 } catch (e) {
                     console.log("Sende-Fehler:", e);
