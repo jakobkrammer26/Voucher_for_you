@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iPad CamShare Final</title>
+    <title>iPad CamShare Pro Max</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body {
@@ -14,38 +14,55 @@
             color: #ffffff;
             text-align: center;
             overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
         .container {
-            max-width: 500px;
+            max-width: 600px;
             margin: 0 auto;
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            height: 100%;
+            width: 100%;
             justify-content: space-between;
         }
-        h1 { color: #30d158; font-size: 24px; margin: 10px 0 5px 0; }
+        h1 { color: #30d158; font-size: 22px; margin: 5px 0; }
+        
         .status-box {
             background: #1c1c1e;
-            padding: 10px;
+            padding: 8px;
             border-radius: 10px;
-            font-size: 13px;
-            margin-bottom: 10px;
+            font-size: 12px;
+            margin-bottom: 5px;
             border: 1px solid #2c2c2e;
+        }
+
+        /* Buttons im iOS-Look */
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 5px;
         }
         .btn {
             background-color: #30d158;
             color: black;
             font-weight: bold;
             border: none;
-            padding: 14px 20px;
-            font-size: 15px;
+            padding: 12px;
+            font-size: 14px;
             border-radius: 10px;
             cursor: pointer;
-            width: 100%;
-            margin-bottom: 8px;
+            flex: 1;
+            transition: opacity 0.1s;
         }
+        .btn:active { opacity: 0.7; }
         .btn-blue { background-color: #0a84ff; color: white; }
+        .btn-red { background-color: #ff453a; color: white; }
+        .btn-gray { background-color: #2c2c2e; color: white; }
         
+        /* Video-Bereich */
         #viewports {
             position: relative;
             flex-grow: 1;
@@ -62,9 +79,9 @@
         #remote-video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             transform-origin: center;
-            transition: transform 0.1s ease-out;
+            transition: transform 0.2s ease;
         }
 
         /* Kleines lokales Vorschaufenster (Bild-in-Bild) */
@@ -72,8 +89,8 @@
             position: absolute;
             bottom: 15px;
             right: 15px;
-            width: 110px;
-            height: 145px;
+            width: 90px;
+            height: 120px;
             object-fit: cover;
             border-radius: 8px;
             border: 2px solid #ffffff;
@@ -82,21 +99,34 @@
         }
 
         .controls {
-            padding: 15px 0;
+            padding: 10px 0;
             background: #000;
         }
-        input[type="range"] {
-            width: 90%;
+        
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
             margin-top: 5px;
+        }
+
+        .slider-box {
+            margin-top: 8px;
+            background: #1c1c1e;
+            padding: 8px;
+            border-radius: 10px;
+        }
+        input[type="range"] {
+            width: 85%;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div>
-        <h1>iPad CamShare</h1>
-        <div class="status-box" id="status">Klicke zuerst auf "Kamera aktivieren"</div>
+    <div id="header-area">
+        <h1>iPad CamShare Pro Max</h1>
+        <div class="status-box" id="status">Schritt 1: Kamera aktivieren</div>
     </div>
 
     <div id="viewports">
@@ -104,16 +134,35 @@
         <video id="local-video" autoplay playsinline muted></video>
     </div>
 
-    <div class="controls">
-        <button class="btn" id="btn-cam" onclick="initLocalCamera()">1. Kamera aktivieren</button>
-        <button class="btn btn-blue" id="btn-connect" onclick="startConnection()" disabled style="opacity: 0.5;">2. Koppeln (Anderes iPad rufen)</button>
+    <div class="controls" id="controls-area">
+        <div class="btn-row">
+            <button class="btn" id="btn-cam" onclick="initLocalCamera()">1. Kamera aktivieren</button>
+            <button class="btn btn-blue" id="btn-connect" onclick="startConnection()" disabled style="opacity: 0.4;">2. Koppeln</button>
+        </div>
         
-        <div style="margin-top: 10px;">
-            <span style="font-size: 13px; color: #aeaeb2;">Zoom:</span><br>
+        <div class="btn-row">
+            <button class="btn btn-gray" style="background-color: #545456;" onclick="takePhoto()">📸 Foto machen</button>
+            <button class="btn btn-red" id="btn-record" onclick="toggleRecording()" disabled style="opacity: 0.4;">🔴 Aufnahme starten</button>
+        </div>
+        
+        <div class="control-grid">
+            <button class="btn btn-gray" onclick="rotateVideo()">🔄 Drehen (90°)</button>
+            <button class="btn btn-gray" onclick="mirrorVideo()">🪞 Spiegeln</button>
+            <button class="btn btn-gray" onclick="switchCamera()">📷 Cam wechseln</button>
+        </div>
+
+        <div class="control-grid" style="margin-top: 5px;">
+            <button class="btn btn-gray" style="grid-column: span 3;" onclick="toggleFullscreen()">📺 Vollbild-Modus</button>
+        </div>
+        
+        <div class="slider-box">
+            <span style="font-size: 12px; color: #aeaeb2;">Zoom:</span><br>
             <input type="range" id="zoom-slider" min="1" max="4" step="0.1" value="1" oninput="applyZoom(this.value)">
         </div>
     </div>
 </div>
+
+<canvas id="capture-canvas" style="display: none;"></canvas>
 
 <script>
     const ZUFALLS_ID = Math.floor(1000 + Math.random() * 9000);
@@ -124,19 +173,33 @@
     const remoteVideo = document.getElementById('remote-video');
     const btnCam = document.getElementById('btn-cam');
     const btnConnect = document.getElementById('btn-connect');
+    const btnRecord = document.getElementById('btn-record');
     const zoomSlider = document.getElementById('zoom-slider');
+    const captureCanvas = document.getElementById('capture-canvas');
 
     let peer = null;
     let localStream = null;
-    let currentZoom = 1;
+    let remoteStreamObject = null; // Speichert den empfangenen Stream für die Aufnahme
+    let currentCall = null;
+    let currentFacingMode = "environment"; 
 
-    // 1. Lokale Kamera auf JEDEM iPad sofort starten
+    // Aufnahme-Variablen
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let isRecording = false;
+
+    // Transformationen
+    let currentZoom = 1;
+    let currentRotation = 0; 
+    let isMirrored = false;
+
+    // 1. Kamera starten
     async function initLocalCamera() {
         try {
             statusDiv.innerText = "Kamera wird gestartet...";
             localStream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    facingMode: "environment", // Rückkamera
+                    facingMode: currentFacingMode,
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 },
@@ -148,81 +211,219 @@
             btnConnect.disabled = false;
             btnConnect.style.opacity = "1";
             
-            // PeerJS Server initialisieren
             initPeer();
         } catch (err) {
-            statusDiv.innerText = "Fehler: Kamerazugriff verweigert (" + err.message + ")";
+            statusDiv.innerText = "Kamera-Fehler: " + err.message;
         }
     }
 
-    // 2. Peer initialisieren und für eingehende Verbindungen bereitmachen
+    // 2. PeerJS verbinden
     function initPeer() {
         peer = new Peer(RAUM_ID);
 
         peer.on('open', (id) => {
-            statusDiv.innerHTML = `Bereit! Code dieses iPads: <b style="color:#30d158; font-size:16px;">${ZUFALLS_ID}</b><br>Gib diesen Code auf dem anderen iPad ein.`;
+            statusDiv.innerHTML = `Bereit! Code dieses iPads: <b style="color:#30d158; font-size:16px;">${ZUFALLS_ID}</b><br>Gib diesen auf dem anderen iPad ein.`;
         });
 
-        // Falls uns das andere iPad anruft
         peer.on('call', (call) => {
-            statusDiv.innerText = "Verbindung wird hergestellt...";
-            call.answer(localStream); // Sende unseren Kamera-Stream zurück
+            statusDiv.innerText = "Verbindung wird aufgebaut...";
+            currentCall = call;
+            call.answer(localStream);
             
-            call.on('stream', (remoteStream) => {
-                showRemoteStream(remoteStream);
+            call.on('stream', (incomingStream) => {
+                showRemoteStream(incomingStream);
             });
-        });
-
-        peer.on('error', (err) => {
-            statusDiv.innerText = "Verbindungs-Fehler: " + err.type;
         });
     }
 
-    // 3. Verbindung zum anderen iPad aktiv herstellen
+    // 3. Aktiv anrufen
     function startConnection() {
         const zielCode = prompt("Gib den 4-stelligen Code des anderen iPads ein:");
         if (!zielCode) return;
 
         const zielID = "ipad-rtc-" + zielCode.trim();
-        statusDiv.innerText = "Rufe anderes iPad ab...";
+        statusDiv.innerText = "Verbinde mit Gegenstelle...";
 
-        // Wir rufen an und senden direkt unser Videosignal mit (wichtig für iOS!)
-        const call = peer.call(zielID, localStream);
+        currentCall = peer.call(zielID, localStream);
 
-        call.on('stream', (remoteStream) => {
-            showRemoteStream(remoteStream);
-        });
-
-        call.on('error', (err) => {
-            statusDiv.innerText = "Kopplungs-Fehler: " + err.message;
+        currentCall.on('stream', (incomingStream) => {
+            showRemoteStream(incomingStream);
         });
     }
 
-    // 4. Stream anzeigen (inklusive Force-Play gegen die iOS Blockade)
     function showRemoteStream(stream) {
+        remoteStreamObject = stream;
         remoteVideo.srcObject = stream;
-        statusDiv.innerText = "Verbunden! Live-Stream läuft.";
+        statusDiv.innerText = "Verbunden! Live-Stream aktiv.";
+        remoteVideo.style.display = "block";
         
-        // Erzwinge die Wiedergabe
-        remoteVideo.play().catch(e => {
-            statusDiv.innerText = "Tippe auf das Bild zum Abspielen!";
+        // Aufnahme-Button freischalten
+        btnRecord.disabled = false;
+        btnRecord.style.opacity = "1";
+        
+        remoteVideo.play().catch(() => {
+            statusDiv.innerText = "Tippe auf den Bildschirm zum Abspielen!";
             remoteVideo.onclick = () => {
                 remoteVideo.play();
-                statusDiv.innerText = "Verbunden! Live-Stream läuft.";
+                statusDiv.innerText = "Verbunden! Live-Stream aktiv.";
             };
         });
     }
 
-    // 5. Zoom-Steuerung
-    function applyZoom(value) {
-        currentZoom = value;
-        remoteVideo.style.transform = `scale(${value})`;
+    // --- NEUE FUNKTION: FOTO AUFNEHMEN ---
+    function takePhoto() {
+        const video = remoteVideo.srcObject ? remoteVideo : localVideo;
+        if (!video.srcObject) {
+            alert("Es ist noch kein Kamerabild aktiv!");
+            return;
+        }
+
+        // Setzt die Canvas-Größe auf die echte Videoauflösung
+        captureCanvas.width = video.videoWidth;
+        captureCanvas.height = video.videoHeight;
+        const ctx = captureCanvas.getContext('2d');
+
+        // Wendet Drehung und Spiegelung auch auf dem gespeicherten Foto an!
+        ctx.translate(captureCanvas.width / 2, captureCanvas.height / 2);
+        if (isMirrored) ctx.scale(-1, 1);
+        ctx.rotate((currentRotation * Math.PI) / 180);
+        ctx.drawImage(video, -captureCanvas.width / 2, -captureCanvas.height / 2, captureCanvas.width, captureCanvas.height);
+
+        // Bild als Download triggern
+        const dataURL = captureCanvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `iPad_CamShare_Foto_${Date.now()}.png`;
+        link.href = dataURL;
+        link.click();
+        statusDiv.innerText = "Foto erfolgreich gespeichert!";
     }
 
-    // Pinch-To-Zoom mit zwei Fingern auf dem großen Videobild
-    const viewports = document.getElementById('viewports');
-    let initialDist = 0;
+    // --- NEUE FUNKTION: VIDEO AUFZEICHNEN ---
+    function toggleRecording() {
+        const streamToRecord = remoteStreamObject || localStream;
+        if (!streamToRecord) return;
 
+        if (!isRecording) {
+            // Aufnahme starten
+            recordedChunks = [];
+            
+            // Auf iPads/Safari muss oft der mp4/H264 Codec erzwungen werden
+            let options = { mimeType: 'video/mp4' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options = { mimeType: 'video/webm' };
+            }
+
+            try {
+                mediaRecorder = new MediaRecorder(streamToRecord, options);
+            } catch (e) {
+                // Fallback, falls der Browser streikt
+                mediaRecorder = new MediaRecorder(streamToRecord);
+            }
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = `iPad_CamShare_Video_${Date.now()}.mp4`;
+                link.href = url;
+                link.click();
+                statusDiv.innerText = "Aufnahme erfolgreich gespeichert!";
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+            btnRecord.innerText = "⏹ Aufnahme stoppen";
+            btnRecord.style.backgroundColor = "#ff3b30";
+            statusDiv.innerText = "🔴 Videoaufnahme läuft...";
+        } else {
+            // Aufnahme stoppen
+            mediaRecorder.stop();
+            isRecording = false;
+            btnRecord.innerText = "🔴 Aufnahme starten";
+            btnRecord.style.backgroundColor = "#ff453a";
+        }
+    }
+
+    // --- TRANSFORMATIONEN (DREHEN & SPIEGELN) ---
+    function rotateVideo() {
+        currentRotation = (currentRotation + 90) % 360;
+        updateVideoTransform();
+        statusDiv.innerText = `Bild gedreht um ${currentRotation}°`;
+    }
+
+    function mirrorVideo() {
+        isMirrored = !isMirrored;
+        updateVideoTransform();
+        statusDiv.innerText = isMirrored ? "Bild gespiegelt" : "Bild normal";
+    }
+
+    function updateVideoTransform() {
+        const mirrorScale = isMirrored ? -1 : 1;
+        remoteVideo.style.transform = `scale(${currentZoom}) rotate(${currentRotation}deg) scaleX(${mirrorScale})`;
+    }
+
+    function applyZoom(value) {
+        currentZoom = value;
+        updateVideoTransform();
+    }
+
+    // Kamera wechseln
+    async function switchCamera() {
+        if (!localStream) return;
+        currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+        statusDiv.innerText = "Wechsle Kamera...";
+
+        try {
+            const newStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: currentFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+                audio: false
+            });
+
+            const newTrack = newStream.getVideoTracks()[0];
+            localVideo.srcObject = newStream;
+
+            if (currentCall && currentCall.peerConnection) {
+                const senders = currentCall.peerConnection.getSenders();
+                const videoSender = senders.find(sender => sender.track && sender.track.kind === 'video');
+                if (videoSender) {
+                    videoSender.replaceTrack(newTrack);
+                }
+            }
+
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = newStream;
+            statusDiv.innerText = "Kamera erfolgreich gewechselt!";
+        } catch (err) {
+            statusDiv.innerText = "Wechsel fehlgeschlagen: " + err.message;
+        }
+    }
+
+    // Vollbild-Modus
+    function toggleFullscreen() {
+        const header = document.getElementById('header-area');
+        const controls = document.getElementById('controls-area');
+        
+        if (header.style.display !== "none") {
+            header.style.display = "none";
+            controls.style.display = "none";
+            statusDiv.innerText = "";
+            
+            viewports.onclick = () => {
+                header.style.display = "block";
+                controls.style.display = "block";
+                viewports.onclick = null;
+            };
+        }
+    }
+
+    // Pinch-To-Zoom
+    let initialDist = 0;
     viewports.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
             initialDist = Math.hypot(
