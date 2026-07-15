@@ -2,177 +2,228 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iPad Kamera Stream</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>iPad CamShare Final</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
-            padding: 20px;
-            background-color: #121212;
+            padding: 10px;
+            background-color: #000000;
             color: #ffffff;
             text-align: center;
+            overflow: hidden;
         }
-        h1 { color: #0a84ff; }
         .container {
-            max-width: 800px;
+            max-width: 500px;
             margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            justify-content: space-between;
+        }
+        h1 { color: #30d158; font-size: 24px; margin: 10px 0 5px 0; }
+        .status-box {
+            background: #1c1c1e;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-bottom: 10px;
+            border: 1px solid #2c2c2e;
         }
         .btn {
-            background-color: #0a84ff;
-            color: white;
+            background-color: #30d158;
+            color: black;
+            font-weight: bold;
             border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            border-radius: 8px;
+            padding: 14px 20px;
+            font-size: 15px;
+            border-radius: 10px;
             cursor: pointer;
-            margin: 10px;
-            transition: background 0.2s;
-        }
-        .btn:hover { background-color: #0056b3; }
-        .btn-secondary { background-color: #3a3a3c; }
-        
-        #video-container {
-            margin-top: 20px;
-            position: relative;
             width: 100%;
-            max-width: 640px;
-            aspect-ratio: 4/3;
-            background: #000;
-            margin-left: auto;
-            margin-right: auto;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 8px;
         }
-        video {
+        .btn-blue { background-color: #0a84ff; color: white; }
+        
+        #viewports {
+            position: relative;
+            flex-grow: 1;
+            background: #121212;
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #2c2c2e;
+        }
+        
+        /* Großes Empfänger-Video */
+        #remote-video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.2s ease;
+            transform-origin: center;
+            transition: transform 0.1s ease-out;
         }
-        .controls {
-            margin-top: 15px;
-        }
-        input {
-            padding: 10px;
-            font-size: 16px;
+
+        /* Kleines lokales Vorschaufenster (Bild-in-Bild) */
+        #local-video {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            width: 110px;
+            height: 145px;
+            object-fit: cover;
             border-radius: 8px;
-            border: 1px solid #3a3a3c;
-            background: #2c2c2e;
-            color: white;
-            width: 200px;
-            text-align: center;
+            border: 2px solid #ffffff;
+            z-index: 10;
+            background: #000;
         }
-        .status {
-            color: #aeaeb2;
-            margin: 15px 0;
+
+        .controls {
+            padding: 15px 0;
+            background: #000;
+        }
+        input[type="range"] {
+            width: 90%;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>iPad CamShare</h1>
-    
-    <div class="status">Deine ID: <strong id="my-id">Wird geladen...</strong></div>
-    
     <div>
-        <input type="text" id="peer-id-input" placeholder="ID des anderen iPads eingeben">
-        <button class="btn" onclick="connectToPeer()">Kamera anfordern</button>
+        <h1>iPad CamShare</h1>
+        <div class="status-box" id="status">Klicke zuerst auf "Kamera aktivieren"</div>
+    </div>
+
+    <div id="viewports">
+        <video id="remote-video" autoplay playsinline muted></video>
+        <video id="local-video" autoplay playsinline muted></video>
     </div>
 
     <div class="controls">
-        <button class="btn btn-secondary" onclick="switchCamera()">Kamera wechseln (Front/Back)</button>
-    </div>
-
-    <div id="video-container">
-        <video id="remote-video" autoplay playsinline></video>
-    </div>
-
-    <div class="controls">
-        <p>Zoom-Steuerung (Schieberegler oder mit zwei Fingern auf dem Video pitchen):</p>
-        <input type="range" id="zoom-slider" min="1" max="4" step="0.1" value="1" oninput="applyZoom(this.value)">
+        <button class="btn" id="btn-cam" onclick="initLocalCamera()">1. Kamera aktivieren</button>
+        <button class="btn btn-blue" id="btn-connect" onclick="startConnection()" disabled style="opacity: 0.5;">2. Koppeln (Anderes iPad rufen)</button>
+        
+        <div style="margin-top: 10px;">
+            <span style="font-size: 13px; color: #aeaeb2;">Zoom:</span><br>
+            <input type="range" id="zoom-slider" min="1" max="4" step="0.1" value="1" oninput="applyZoom(this.value)">
+        </div>
     </div>
 </div>
 
 <script>
-    let peer;
+    const ZUFALLS_ID = Math.floor(1000 + Math.random() * 9000);
+    const RAUM_ID = "ipad-rtc-" + ZUFALLS_ID;
+
+    const statusDiv = document.getElementById('status');
+    const localVideo = document.getElementById('local-video');
+    const remoteVideo = document.getElementById('remote-video');
+    const btnCam = document.getElementById('btn-cam');
+    const btnConnect = document.getElementById('btn-connect');
+    const zoomSlider = document.getElementById('zoom-slider');
+
+    let peer = null;
     let localStream = null;
-    let currentFacingMode = "environment"; // Startet standardmäßig mit der Rückkamera ("environment") oder "user" (Front)
     let currentZoom = 1;
 
-    // 1. PeerJS initialisieren
-    // Erzeugt eine zufällige ID für dieses iPad
-    peer = new Peer();
-
-    peer.on('open', (id) => {
-        document.getElementById('my-id').innerText = id;
-    });
-
-    // 2. Kamera-Stream holen
-    async function getCameraStream() {
-        if (localStream) {
-            localStream.getTracks().forEach(track => track.stop());
-        }
+    // 1. Lokale Kamera auf JEDEM iPad sofort starten
+    async function initLocalCamera() {
         try {
-            // Holt Video-Berechtigung vom iPad
+            statusDiv.innerText = "Kamera wird gestartet...";
             localStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: currentFacingMode },
+                video: {
+                    facingMode: "environment", // Rückkamera
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
                 audio: false
             });
-            return localStream;
+            
+            localVideo.srcObject = localStream;
+            btnCam.style.display = "none";
+            btnConnect.disabled = false;
+            btnConnect.style.opacity = "1";
+            
+            // PeerJS Server initialisieren
+            initPeer();
         } catch (err) {
-            alert("Fehler beim Zugriff auf die Kamera: " + err.message);
+            statusDiv.innerText = "Fehler: Kamerazugriff verweigert (" + err.message + ")";
         }
     }
 
-    // 3. Eingehenden Anruf (Stream-Anforderung) beantworten
-    peer.on('call', async (call) => {
-        const stream = await getCameraStream();
-        if (stream) {
-            call.answer(stream); // Sendet den eigenen Kamera-Stream zurück
-        }
-    });
+    // 2. Peer initialisieren und für eingehende Verbindungen bereitmachen
+    function initPeer() {
+        peer = new Peer(RAUM_ID);
 
-    // 4. Verbindung zum anderen iPad aufbauen (Stream anfordern)
-    async function connectToPeer() {
-        const otherId = document.getElementById('peer-id-input').value.trim();
-        if (!otherId) {
-            alert("Bitte gib die ID des anderen iPads ein!");
-            return;
-        }
+        peer.on('open', (id) => {
+            statusDiv.innerHTML = `Bereit! Code dieses iPads: <b style="color:#30d158; font-size:16px;">${ZUFALLS_ID}</b><br>Gib diesen Code auf dem anderen iPad ein.`;
+        });
 
-        // Wir rufen das andere iPad an (wir senden einen leeren Stream, um dessen Stream zu triggern)
-        const call = peer.call(otherId, new MediaStream());
-        
-        call.on('stream', (remoteStream) => {
-            // Empfangenen Stream im Video-Element anzeigen
-            const videoElement = document.getElementById('remote-video');
-            videoElement.srcObject = remoteStream;
+        // Falls uns das andere iPad anruft
+        peer.on('call', (call) => {
+            statusDiv.innerText = "Verbindung wird hergestellt...";
+            call.answer(localStream); // Sende unseren Kamera-Stream zurück
+            
+            call.on('stream', (remoteStream) => {
+                showRemoteStream(remoteStream);
+            });
+        });
+
+        peer.on('error', (err) => {
+            statusDiv.innerText = "Verbindungs-Fehler: " + err.type;
         });
     }
 
-    // 5. Kamera wechseln (Front / Rückseite)
-    async function switchCamera() {
-        currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
-        await getCameraStream();
-        alert("Kamera gewechselt! Wenn du streamst, verbinde dich bitte neu, um das Bild zu aktualisieren.");
+    // 3. Verbindung zum anderen iPad aktiv herstellen
+    function startConnection() {
+        const zielCode = prompt("Gib den 4-stelligen Code des anderen iPads ein:");
+        if (!zielCode) return;
+
+        const zielID = "ipad-rtc-" + zielCode.trim();
+        statusDiv.innerText = "Rufe anderes iPad ab...";
+
+        // Wir rufen an und senden direkt unser Videosignal mit (wichtig für iOS!)
+        const call = peer.call(zielID, localStream);
+
+        call.on('stream', (remoteStream) => {
+            showRemoteStream(remoteStream);
+        });
+
+        call.on('error', (err) => {
+            statusDiv.innerText = "Kopplungs-Fehler: " + err.message;
+        });
     }
 
-    // 6. Zoom-Funktion (Simuliert über CSS-Transform für maximale Kompatibilität)
+    // 4. Stream anzeigen (inklusive Force-Play gegen die iOS Blockade)
+    function showRemoteStream(stream) {
+        remoteVideo.srcObject = stream;
+        statusDiv.innerText = "Verbunden! Live-Stream läuft.";
+        
+        // Erzwinge die Wiedergabe
+        remoteVideo.play().catch(e => {
+            statusDiv.innerText = "Tippe auf das Bild zum Abspielen!";
+            remoteVideo.onclick = () => {
+                remoteVideo.play();
+                statusDiv.innerText = "Verbunden! Live-Stream läuft.";
+            };
+        });
+    }
+
+    // 5. Zoom-Steuerung
     function applyZoom(value) {
         currentZoom = value;
-        const video = document.getElementById('remote-video');
-        video.style.transform = `scale(${value})`;
+        remoteVideo.style.transform = `scale(${value})`;
     }
 
-    // Pinch-to-Zoom Geste auf dem Video-Container für iPads hinzufügen
-    const videoContainer = document.getElementById('video-container');
+    // Pinch-To-Zoom mit zwei Fingern auf dem großen Videobild
+    const viewports = document.getElementById('viewports');
     let initialDist = 0;
 
-    videoContainer.addEventListener('touchstart', (e) => {
+    viewports.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
             initialDist = Math.hypot(
                 e.touches[0].pageX - e.touches[1].pageX,
@@ -181,7 +232,7 @@
         }
     });
 
-    videoContainer.addEventListener('touchmove', (e) => {
+    viewports.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2 && initialDist > 0) {
             const dist = Math.hypot(
                 e.touches[0].pageX - e.touches[1].pageX,
@@ -190,15 +241,13 @@
             let factor = dist / initialDist;
             let newZoom = Math.min(Math.max(currentZoom * factor, 1), 4);
             
-            document.getElementById('zoom-slider').value = newZoom;
+            zoomSlider.value = newZoom;
             applyZoom(newZoom);
-            initialDist = dist; // Basiswert aktualisieren
+            initialDist = dist;
         }
     });
 
-    videoContainer.addEventListener('touchend', () => {
-        initialDist = 0;
-    });
+    viewports.addEventListener('touchend', () => { initialDist = 0; });
 </script>
 
 </body>
