@@ -3,32 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iPad Kamera Diagnose</title>
+    <title>iPad Kamera Stream & Zoom</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             padding: 15px;
             background-color: #121212;
             color: #ffffff;
             text-align: center;
         }
-        h1 { color: #ff9f0a; }
-        .container { max-width: 600px; margin: 0 auto; }
+        h1 { 
+            color: #ff9f0a; 
+            margin-bottom: 5px;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
         .btn {
             background-color: #ff9f0a;
             color: black;
             font-weight: bold;
             border: none;
-            padding: 12px 20px;
-            font-size: 15px;
+            padding: 14px 24px;
+            font-size: 16px;
             border-radius: 8px;
             cursor: pointer;
-            margin: 5px;
+            margin: 8px;
+            transition: opacity 0.2s;
+        }
+        .btn:active {
+            opacity: 0.8;
+        }
+        .btn-blue {
+            background-color: #0a84ff;
+            color: white;
         }
         #video-container {
-            margin: 15px auto;
+            margin: 20px auto;
             position: relative;
             width: 100%;
             max-width: 480px;
@@ -39,14 +53,24 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         video {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: none;
+            transition: transform 0.1s ease-out;
         }
-        /* Das Diagnose-Fenster */
+        .controls {
+            margin: 15px 0;
+        }
+        input[type="range"] {
+            width: 80%;
+            max-width: 300px;
+            margin-top: 10px;
+        }
+        /* Das Diagnose-Fenster für Fehlersuche */
         #debug-console {
             background: #1c1c1e;
             border: 1px solid #3a3a3c;
@@ -54,11 +78,11 @@
             padding: 10px;
             text-align: left;
             font-family: monospace;
-            font-size: 12px;
+            font-size: 11px;
             max-height: 150px;
             overflow-y: auto;
             color: #30d158;
-            margin-top: 20px;
+            margin-top: 25px;
         }
         .log-error { color: #ff453a; }
         .log-info { color: #0a84ff; }
@@ -67,33 +91,43 @@
 <body>
 
 <div class="container">
-    <h1>Kamera Diagnose</h1>
+    <h1>iPad CamShare</h1>
+    <p style="color: #aeaeb2; margin-top: 0;">Streamen & Zoomen im selben WLAN</p>
     
-    <div style="margin: 10px 0;">
-        <button class="btn" onclick="startCameraSender()">1. Kamera starten</button>
-        <button class="btn" style="background-color: #0a84ff; color: white;" onclick="connectAsReceiver()">2. Als Empfänger verbinden</button>
+    <div style="margin: 20px 0;">
+        <button class="btn" onclick="startCameraSender()">1. Kamera starten (Sender)</button>
+        <button class="btn btn-blue" onclick="connectAsReceiver()">2. Verbinden (Empfänger)</button>
     </div>
 
     <div id="video-container">
-        <button id="play-btn" class="btn" style="position:absolute; display:none;" onclick="forcePlay()">▶ Video abspielen</button>
+        <button id="play-btn" class="btn" style="position: absolute; z-index: 10; display: none;" onclick="forcePlay()">▶ Video abspielen</button>
         <video id="remote-video" autoplay playsinline muted></video>
     </div>
 
-    <h3>System-Protokoll (Fehlersuche):</h3>
+    <div class="controls">
+        <p style="margin: 5px 0; font-size: 14px; color: #aeaeb2;">Zoom (Regler nutzen oder mit zwei Fingern auf dem Video pitchen):</p>
+        <input type="range" id="zoom-slider" min="1" max="4" step="0.1" value="1" oninput="applyZoom(this.value)">
+    </div>
+
+    <h3>System-Protokoll:</h3>
     <div id="debug-console"></div>
 </div>
 
 <script>
-    // Einzigartiger Raumname (Ändere das, falls du Verbindungen von Fremden verhindern willst)
-    const RAUM_ID = "ipad-direct-cam-test-2026"; 
+    // Generiert bei jedem Neuladen eine frische 4-stellige Nummer
+    const ZUFALLS_ID = Math.floor(1000 + Math.random() * 9000);
+    const BASIS_RAUM_ID = "ipad-cam-" + ZUFALLS_ID; 
 
     const consoleDiv = document.getElementById('debug-console');
     const videoElement = document.getElementById('remote-video');
     const playBtn = document.getElementById('play-btn');
+    const zoomSlider = document.getElementById('zoom-slider');
+    
     let peer = null;
     let localStream = null;
+    let currentZoom = 1;
 
-    // Eigene Log-Funktion, die Text auf dem iPad-Bildschirm anzeigt
+    // Protokoll-Funktion für die Anzeige direkt auf dem iPad-Screen
     function log(message, type = 'info') {
         const p = document.createElement('div');
         p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
@@ -103,83 +137,142 @@
         consoleDiv.scrollTop = consoleDiv.scrollHeight;
     }
 
-    // Prüfen, ob wir auf HTTPS sind
+    // Sicherheitsprüfung (Kamerazugriff geht bei iOS nur via HTTPS)
     if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-        log("WARNUNG: Du nutzt kein HTTPS! iOS blockiert die Kamera ohne HTTPS komplett!", "error");
+        log("WARNUNG: Kein HTTPS erkannt! iOS blockiert WebRTC-Kameras ohne sichere HTTPS-Verbindung rigoros.", "error");
     } else {
-        log("Protokoll OK (HTTPS/Localhost erkannt).");
+        log("Sicherheits-Check bestanden (HTTPS/Localhost aktiv).");
     }
 
-    // SENDER STARTEN (iPad 1)
+    // --- 1. SENDER MODUS (Kamera-iPad) ---
     async function startCameraSender() {
-        log("Starte Sender-Modus...");
+        log("Initialisiere Sender-Modus...");
         try {
-            log("Fordere Kamera-Rechte an...");
+            log("Fordere Kamera-Zugriff an...");
             localStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "environment" },
+                video: { 
+                    facingMode: "environment", // Nutzt standardmäßig die Rückkamera
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
                 audio: false
             });
-            log("Kamera erfolgreich gestartet!", "info");
+            log("Kamera-Zugriff vom iPad erlaubt!", "info");
         } catch (e) {
             log("Kamera-Fehler: " + e.message, "error");
+            log("Tipp: Überprüfe die Einstellungen deines iPads, ob Safari die Kamera nutzen darf.", "error");
             return;
         }
 
-        log("Verbinde mit PeerJS-Server...");
-        peer = new Peer(RAUM_ID + "-sender");
+        log("Verbinde mit dem PeerJS-Server...");
+        peer = new Peer(BASIS_RAUM_ID + "-sender");
 
         peer.on('open', (id) => {
-            log("Erfolgreich als SENDER registriert! ID: " + id);
+            log("--- BEREIT! ---", "info");
+            log(`Dieses iPad sendet jetzt unter der Nummer: ${ZUFALLS_ID}`, "info");
+            log("Lass diese Seite offen und starte nun das andere iPad.", "info");
         });
 
         peer.on('call', (call) => {
-            log("Anruf von Empfänger erhalten! Sende Video-Stream...", "info");
+            log("Verbindung vom Empfänger erkannt! Sende Stream...", "info");
             call.answer(localStream);
         });
 
         peer.on('error', (err) => {
-            log("PeerJS Fehler: " + err.type, "error");
+            log("Verbindungsfehler: " + err.type, "error");
         });
     }
 
-    // EMPFÄNGER STARTEN (iPad 2)
+    // --- 2. EMPFÄNGER MODUS (Anzeige-iPad) ---
     function connectAsReceiver() {
-        log("Starte Empfänger-Modus...");
+        const zielNummer = prompt("Gib die 4-stellige Nummer ein, die auf dem Sender-iPad angezeigt wird:");
+        if (!zielNummer) {
+            log("Abgebrochen: Keine Nummer eingegeben.", "error");
+            return;
+        }
+
+        const zielRaum = "ipad-cam-" + zielNummer.trim() + "-sender";
+        log(`Verbinde mit Sender-Raum: ${zielRaum}...`);
+        
         peer = new Peer();
 
         peer.on('open', (id) => {
-            log("Empfänger bereit. Rufe Sender an...");
-            // Wir rufen den Sender an
-            const call = peer.call(RAUM_ID + "-sender", new MediaStream());
+            log("Empfänger registriert. Fordere Videostream an...");
+            
+            // Wir rufen den Sender an (mit leerem Stream)
+            const call = peer.call(zielRaum, new MediaStream());
 
             call.on('stream', (remoteStream) => {
-                log("Video-Stream erhalten! Versuche darzustellen...", "info");
+                log("Videostream erfolgreich empfangen!", "info");
                 videoElement.srcObject = remoteStream;
                 videoElement.style.display = "block";
-                playBtn.style.display = "block"; // Zeige iOS Startknopf
+                playBtn.style.display = "block"; // Zeigt den Play-Button für iOS-Freigabe
+                log("Tippe jetzt auf '▶ Video abspielen'!", "info");
             });
 
             call.on('error', (err) => {
-                log("Verbindungsfehler im Call: " + err.message, "error");
+                log("Stream-Fehler: " + err.message, "error");
             });
         });
 
         peer.on('error', (err) => {
-            log("Empfänger PeerJS Fehler: " + err.type, "error");
+            log("Empfänger-Fehler: " + err.type, "error");
+            if(err.type === 'peer-unavailable') {
+                log("Konnte den Sender nicht finden. Stimmt die Nummer?", "error");
+            }
         });
     }
 
+    // iOS-spezifische Freigabe durch echte Interaktion
     function forcePlay() {
-        log("Sende Play-Befehl an das Video...");
+        log("Sende Play-Signal an das Video...");
         videoElement.play()
             .then(() => {
-                log("Video spielt erfolgreich ab!", "info");
+                log("Live-Stream läuft!", "info");
                 playBtn.style.display = "none";
             })
             .catch(err => {
-                log("iOS verweigert Abspielen: " + err.message, "error");
+                log("iOS blockiert automatischen Start: " + err.message, "error");
             });
     }
+
+    // --- 3. ZOOM FUNKTIONEN ---
+    function applyZoom(value) {
+        currentZoom = value;
+        videoElement.style.transform = `scale(${value})`;
+    }
+
+    // Touch-Gesten (Pinch-to-Zoom) für iPads implementieren
+    const videoContainer = document.getElementById('video-container');
+    let initialDist = 0;
+
+    videoContainer.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            initialDist = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+        }
+    });
+
+    videoContainer.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && initialDist > 0) {
+            const dist = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+            let factor = dist / initialDist;
+            let newZoom = Math.min(Math.max(currentZoom * factor, 1), 4);
+            
+            zoomSlider.value = newZoom;
+            applyZoom(newZoom);
+            initialDist = dist; 
+        }
+    });
+
+    videoContainer.addEventListener('touchend', () => { 
+        initialDist = 0; 
+    });
 </script>
 
 </body>
