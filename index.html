@@ -3,297 +3,216 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calliope Bluetooth Control</title>
+    <title>Auto-iPad Kamera</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #0f0c1b 0%, #201335 100%);
-            color: #fff;
-            text-align: center;
-            padding: 40px 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
-            min-height: 100vh;
-        }
-
-        h1 {
-            font-size: 2.8rem;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            margin-bottom: 5px;
-            color: #00f3ff;
-            text-shadow: 0 0 20px rgba(0, 243, 255, 0.6);
-        }
-
-        .subtitle {
-            color: #a19da9;
-            font-size: 1.1rem;
-            margin-bottom: 40px;
-        }
-
-        .container {
-            max-width: 700px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 24px;
-            padding: 30px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-        }
-
-        .control-panel {
-            display: none;
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        .name-input-container {
-            margin-bottom: 15px;
-        }
-
-        .name-input-container input {
-            font-size: 16px;
-            padding: 12px 20px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(0, 0, 0, 0.4);
-            color: white;
-            font-weight: bold;
-            text-align: center;
-            width: 60%;
-        }
-
-        button {
-            font-size: 16px;
-            font-weight: 700;
-            padding: 16px 32px;
-            margin: 12px;
-            cursor: pointer;
-            border: none;
-            border-radius: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-
-        button:active {
-            transform: scale(0.96);
-        }
-
-        .btn-connect {
-            background: linear-gradient(45deg, #00ff87 0%, #60efff 100%);
-            color: #000;
-            font-size: 18px;
-            padding: 20px 40px;
-            box-shadow: 0 0 30px rgba(0, 255, 135, 0.4);
-        }
-
-        .btn-forward {
-            background: linear-gradient(45deg, #0055ff 0%, #00ff87 100%);
-            color: white;
-            width: calc(100% - 24px);
-        }
-
-        .btn-blink {
-            background: #222;
-            color: white;
-            border: 1px solid #0055ff;
-        }
-
-        .btn-reverse {
-            background: #ff9800;
-            color: black;
-        }
-
-        .btn-ellen-follow {
-            background: linear-gradient(45deg, #ff007f 0%, #7f00ff 100%);
-            color: white;
-            flex: 1;
-        }
-
-        .btn-ellen-warn {
-            background: linear-gradient(45deg, #ff5722 0%, #ff9800 100%);
-            color: white;
-            flex: 1;
-        }
-
-        .btn-stop {
-            background: #f44336;
-            color: white;
-            width: 60%;
-            margin-top: 30px;
-        }
-
-        .section {
-            background: rgba(0, 0, 0, 0.2);
             padding: 20px;
-            border-radius: 16px;
-            margin-bottom: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.02);
+            background-color: #121212;
+            color: #ffffff;
+            text-align: center;
         }
-
-        h3 {
-            margin-top: 0;
-            font-weight: 500;
-            text-transform: uppercase;
-            font-size: 0.95rem;
-            letter-spacing: 2px;
-            color: #a19da9;
-            text-align: left;
-            border-left: 3px solid #ff007f;
-            padding-left: 10px;
+        h1 { color: #30d158; }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
         }
-
-        #status {
-            margin-top: 30px;
-            font-size: 1.1rem;
-            color: #ff3b30;
-            font-weight: 600;
+        .btn {
+            background-color: #30d158;
+            color: black;
+            font-weight: bold;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.2s;
         }
+        .btn:hover { background-color: #24a142; }
+        .btn-secondary { background-color: #3a3a3c; color: white; }
+        
+        #video-container {
+            margin-top: 20px;
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            aspect-ratio: 4/3;
+            background: #000;
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.2s ease;
+        }
+        .status {
+            font-size: 1.1em;
+            color: #aeaeb2;
+            margin: 15px 0;
+            padding: 10px;
+            background: #1c1c1e;
+            border-radius: 8px;
+            display: inline-block;
+        }
+        .controls { margin-top: 15px; }
+        input[type="range"] { width: 80%; max-width: 300px; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Calliope Matrix</h1>
-        <div class="subtitle">Bluetooth Funk-Steuerung (Auto-Scan &amp; Zahlen)</div>
-
-        <button id="connectBtn" class="btn-connect">🔵 Per Bluetooth verbinden</button>
-
-        <div id="panel" class="control-panel">
-            <div class="section">
-                <h3>📢 Voice Trigger</h3>
-                <div class="name-input-container">
-                    <input type="text" id="targetName" value="Ellen">
-                </div>
-                <div style="display: flex; justify-content: center; gap: 10px;">
-                    <button id="ellenFollowBtn" class="btn-ellen-follow">🏃‍♀️ Rufen</button>
-                    <button id="ellenWarnBtn" class="btn-ellen-warn">⚠️ Vorsicht</button>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3>🚘 Licht &amp; Fahr-Befehle</h3>
-                <button id="forwardBtn" class="btn-forward">🚀 Vorwärts (4)</button>
-                <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
-                    <button id="leftBtn" class="btn-blink">⬅️ Links (1)</button>
-                    <button id="rightBtn" class="btn-blink">Rechts ➡️ (2)</button>
-                </div>
-                <button id="reverseBtn" class="btn-reverse" style="width: calc(100% - 24px);">⚠️ Rückwärts (3)</button>
-            </div>
-
-            <button id="stopBtn" class="btn-stop">❌ STOPP (0)</button>
-        </div>
-
-        <div id="status">STATUS: Bluetooth getrennt</div>
+<div class="container">
+    <h1>Automatische iPad-Kamera</h1>
+    
+    <div class="status" id="status-text">Suche Netzwerk-Verbindung...</div>
+    
+    <div class="controls">
+        <button class="btn btn-secondary" onclick="switchCamera()">Kamera wechseln (Front/Back)</button>
     </div>
 
-    <script>
-        let txCharacteristic;
-        let signalInterval;
-        let aktuellerModus = "0";
+    <div id="video-container">
+        <video id="remote-video" autoplay playsinline></video>
+    </div>
 
-        const connectBtn = document.getElementById('connectBtn');
-        const panel = document.getElementById('panel');
-        const statusDiv = document.getElementById('status');
-        const targetNameInput = document.getElementById('targetName');
+    <div class="controls">
+        <p>Zoom (Regler oder mit zwei Fingern pitchen):</p>
+        <input type="range" id="zoom-slider" min="1" max="4" step="0.1" value="1" oninput="applyZoom(this.value)">
+    </div>
+</div>
 
-        function laptopSprich(text) {
-            window.speechSynthesis.cancel(); 
-            let satz = new SpeechSynthesisUtterance(text);
-            satz.lang = 'de-DE';
-            window.speechSynthesis.speak(satz);
-        }
+<script>
+    // WICHTIG: Ändere dieses Passwort in ein eigenes, geheimes Wort um.
+    // Alle iPads im selben WLAN, die dieses Wort nutzen, finden sich automatisch!
+    const GEMEINSAMER_RAUM = "mein-privates-ipad-netzwerk-9921"; 
 
-        connectBtn.addEventListener('click', async () => {
-            try {
-                statusDiv.innerText = "Scanne alle Geräte...";
-                const device = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
-                    optionalServices: [
-                        '6e400001-b5a3-f393-e0a9-e50e24dcca9e', // UART Service UUID
-                        'e95d93af-251d-470a-a062-fa1922dfa9a8'
-                    ]
-                });
+    let peer;
+    let localStream = null;
+    let currentFacingMode = "environment"; 
+    let currentZoom = 1;
 
-                statusDiv.innerText = "Verbinde mit Gerät...";
-                const server = await device.gatt.connect();
-                
-                statusDiv.innerText = "Suche verfügbare Dienste...";
-                const services = await server.getPrimaryServices();
-                
-                // Durchsuche alle gefundenen Dienste nach einem Kanal zum Schreiben
-                for (let service of services) {
-                    const characteristics = await service.getCharacteristics();
-                    for (let char of characteristics) {
-                        if (char.properties.write || char.properties.writeWithoutResponse) {
-                            txCharacteristic = char;
-                            break;
-                        }
-                    }
-                    if (txCharacteristic) break;
-                }
+    const statusText = document.getElementById('status-text');
 
-                if (!txCharacteristic) {
-                    throw new Error("Kein passender Schreib-Kanal auf dem Calliope gefunden.");
-                }
+    // 1. Verbindung als "iPad 1" (Sender) oder "iPad 2" (Empfänger) initialisieren
+    function initConnection() {
+        // Wir versuchen uns als erstes iPad (der Sender) anzumelden
+        peer = new Peer(GEMEINSAMER_RAUM + "-sender");
 
-                statusDiv.innerText = "STATUS: Über Bluetooth verbunden!";
-                statusDiv.style.color = "#00ff87";
-                panel.style.display = "block";
-                connectBtn.style.display = "none";
-                laptopSprich("Funkverbindung aktiv.");
-            } catch (error) {
-                statusDiv.innerText = "Fehler: " + error.message;
-                statusDiv.style.color = "#f44336";
+        peer.on('open', (id) => {
+            statusText.innerText = "Bereit! Dieses iPad ist der SENDER. Öffne die App auf dem anderen iPad.";
+            startCameraSender();
+        });
+
+        peer.on('error', (err) => {
+            // Wenn die ID "-sender" schon belegt ist, ist dieses iPad automatisch der EMPFÄNGER (iPad 2)
+            if (err.type === 'unavailable-id') {
+                statusText.innerText = "Sender gefunden! Verbinde als Empfänger...";
+                connectAsReceiver();
+            } else {
+                statusText.innerText = "Fehler: " + err.type;
             }
         });
+    }
 
-        async function sendeBefehl(text) {
-            if (txCharacteristic) {
-                try {
-                    let encoder = new TextEncoder();
-                    await txCharacteristic.writeValue(encoder.encode(text + '\n'));
-                } catch (e) {
-                    console.log("Sende-Fehler:", e);
-                }
+    // --- SENDER ROLLE (Dieses iPad stellt die Kamera bereit) ---
+    async function startCameraSender() {
+        // Auf eingehenden Anruf vom Empfänger warten
+        peer.on('call', async (call) => {
+            statusText.innerText = "Empfänger verbunden! Stream läuft...";
+            const stream = await getCameraStream();
+            if (stream) {
+                call.answer(stream);
             }
+        });
+    }
+
+    // Kamera-Stream anfordern
+    async function getCameraStream() {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
         }
-
-        function starteSignal(modusZahl) {
-            if (signalInterval) clearInterval(signalInterval);
-            aktuellerModus = modusZahl;
-            let statusAn = false;
-
-            signalInterval = setInterval(async () => {
-                if (statusAn) {
-                    await sendeBefehl(aktuellerModus);
-                } else {
-                    await sendeBefehl("0");
-                }
-                statusAn = !statusAn;
-            }, 350);
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: currentFacingMode },
+                audio: false
+            });
+            return localStream;
+        } catch (err) {
+            statusText.innerText = "Kamerazugriff verweigert oder nicht möglich.";
         }
+    }
 
-        document.getElementById('forwardBtn').addEventListener('click', () => starteSignal("4"));
-        document.getElementById('leftBtn').addEventListener('click', () => starteSignal("1"));
-        document.getElementById('rightBtn').addEventListener('click', () => starteSignal("2"));
-        document.getElementById('reverseBtn').addEventListener('click', () => starteSignal("3"));
+    // --- EMPFÄNGER ROLLE (Dieses iPad zeigt das Bild an) ---
+    function connectAsReceiver() {
+        // Empfänger bekommt eine zufällige ID, damit es keine Konflikte gibt
+        peer = new Peer();
 
-        document.getElementById('ellenFollowBtn').addEventListener('click', () => {
-            laptopSprich(`${targetNameInput.value.trim() || "Ellen"}, folge mir!`);
+        peer.on('open', () => {
+            // Rufe den Sender automatisch an
+            const call = peer.call(GEMEINSAMER_RAUM + "-sender", new MediaStream());
+            statusText.innerText = "Verbindung zum Sender wird aufgebaut...";
+
+            call.on('stream', (remoteStream) => {
+                statusText.innerText = "Live-Verbindung aktiv!";
+                const videoElement = document.getElementById('remote-video');
+                videoElement.srcObject = remoteStream;
+            });
         });
+    }
 
-        document.getElementById('ellenWarnBtn').addEventListener('click', () => {
-            laptopSprich(`Vorsicht ${targetNameInput.value.trim() || "Ellen"}, pass auf!`);
-        });
+    // Kamera umschalten
+    async function switchCamera() {
+        currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+        await getCameraStream();
+        statusText.innerText = "Kamera gewechselt! Bitte lade das Empfänger-iPad neu, um den Stream zu aktualisieren.";
+    }
 
-        document.getElementById('stopBtn').addEventListener('click', async () => {
-            if (signalInterval) clearInterval(signalInterval);
-            await sendeBefehl("0");
-            statusDiv.innerText = "STATUS: Standby";
-            laptopSprich("Stopp.");
-        });
-    </script>
+    // Zoom-Logik (CSS-Skalierung)
+    function applyZoom(value) {
+        currentZoom = value;
+        const video = document.getElementById('remote-video');
+        video.style.transform = `scale(${value})`;
+    }
+
+    // Pinch-to-Zoom Geste (zwei Finger auf dem Display auseinanderziehen)
+    const videoContainer = document.getElementById('video-container');
+    let initialDist = 0;
+
+    videoContainer.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            initialDist = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+        }
+    });
+
+    videoContainer.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && initialDist > 0) {
+            const dist = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+            let factor = dist / initialDist;
+            let newZoom = Math.min(Math.max(currentZoom * factor, 1), 4);
+            
+            document.getElementById('zoom-slider').value = newZoom;
+            applyZoom(newZoom);
+            initialDist = dist;
+        }
+    });
+
+    videoContainer.addEventListener('touchend', () => { initialDist = 0; });
+
+    // Startet die App automatisch beim Laden der Seite
+    window.onload = initConnection;
+</script>
+
 </body>
 </html>
