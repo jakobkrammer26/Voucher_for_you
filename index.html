@@ -46,12 +46,16 @@
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         video {
             width: 100%;
             height: 100%;
             object-fit: cover;
             transition: transform 0.2s ease;
+            display: none; /* Erst anzeigen, wenn der Stream aktiv ist */
         }
         .status {
             font-size: 1.1em;
@@ -64,6 +68,15 @@
         }
         .controls { margin-top: 15px; }
         input[type="range"] { width: 80%; max-width: 300px; }
+        
+        /* Einblendbarer Button, um die iOS-Autoplay Sperre aufzuheben */
+        #play-overlay-btn {
+            position: absolute;
+            z-index: 10;
+            display: none;
+            padding: 15px 25px;
+            font-size: 18px;
+        }
     </style>
 </head>
 <body>
@@ -71,14 +84,15 @@
 <div class="container">
     <h1>Automatische iPad-Kamera</h1>
     
-    <div class="status" id="status-text">Suche Netzwerk-Verbindung...</div>
+    <div class="status" id="status-text">Initialisiere Netzwerk...</div>
     
     <div class="controls">
         <button class="btn btn-secondary" onclick="switchCamera()">Kamera wechseln (Front/Back)</button>
     </div>
 
     <div id="video-container">
-        <video id="remote-video" autoplay playsinline></video>
+        <button id="play-overlay-btn" class="btn" onclick="forcePlayVideo()">▶ Stream aktivieren</button>
+        <video id="remote-video" autoplay playsinline muted></video>
     </div>
 
     <div class="controls">
@@ -88,8 +102,6 @@
 </div>
 
 <script>
-    // WICHTIG: Ändere dieses Passwort in ein eigenes, geheimes Wort um.
-    // Alle iPads im selben WLAN, die dieses Wort nutzen, finden sich automatisch!
     const GEMEINSAMER_RAUM = "mein-privates-ipad-netzwerk-9921"; 
 
     let peer;
@@ -98,19 +110,18 @@
     let currentZoom = 1;
 
     const statusText = document.getElementById('status-text');
+    const videoElement = document.getElementById('remote-video');
+    const playBtn = document.getElementById('play-overlay-btn');
 
-    // 1. Verbindung als "iPad 1" (Sender) oder "iPad 2" (Empfänger) initialisieren
     function initConnection() {
-        // Wir versuchen uns als erstes iPad (der Sender) anzumelden
         peer = new Peer(GEMEINSAMER_RAUM + "-sender");
 
         peer.on('open', (id) => {
-            statusText.innerText = "Bereit! Dieses iPad ist der SENDER. Öffne die App auf dem anderen iPad.";
+            statusText.innerText = "Bereit! Dieses iPad ist SENDER 1. Öffne nun das andere iPad.";
             startCameraSender();
         });
 
         peer.on('error', (err) => {
-            // Wenn die ID "-sender" schon belegt ist, ist dieses iPad automatisch der EMPFÄNGER (iPad 2)
             if (err.type === 'unavailable-id') {
                 statusText.innerText = "Sender gefunden! Verbinde als Empfänger...";
                 connectAsReceiver();
@@ -120,11 +131,10 @@
         });
     }
 
-    // --- SENDER ROLLE (Dieses iPad stellt die Kamera bereit) ---
+    // --- SENDER ROLLE ---
     async function startCameraSender() {
-        // Auf eingehenden Anruf vom Empfänger warten
         peer.on('call', async (call) => {
-            statusText.innerText = "Empfänger verbunden! Stream läuft...";
+            statusText.innerText = "Empfänger verbunden! Kamera wird übertragen...";
             const stream = await getCameraStream();
             if (stream) {
                 call.answer(stream);
@@ -132,37 +142,52 @@
         });
     }
 
-    // Kamera-Stream anfordern
     async function getCameraStream() {
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
         }
         try {
             localStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: currentFacingMode },
+                video: { 
+                    facingMode: currentFacingMode,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
                 audio: false
             });
             return localStream;
         } catch (err) {
-            statusText.innerText = "Kamerazugriff verweigert oder nicht möglich.";
+            statusText.innerText = "Kamerazugriff fehlgeschlagen: " + err.message;
         }
     }
 
-    // --- EMPFÄNGER ROLLE (Dieses iPad zeigt das Bild an) ---
+    // --- EMPFÄNGER ROLLE ---
     function connectAsReceiver() {
-        // Empfänger bekommt eine zufällige ID, damit es keine Konflikte gibt
         peer = new Peer();
 
         peer.on('open', () => {
-            // Rufe den Sender automatisch an
             const call = peer.call(GEMEINSAMER_RAUM + "-sender", new MediaStream());
-            statusText.innerText = "Verbindung zum Sender wird aufgebaut...";
+            statusText.innerText = "Verbindung wird aufgebaut...";
 
             call.on('stream', (remoteStream) => {
-                statusText.innerText = "Live-Verbindung aktiv!";
-                const videoElement = document.getElementById('remote-video');
+                statusText.innerText = "Verbindung hergestellt! Klicke auf den Button zum Abspielen.";
+                
                 videoElement.srcObject = remoteStream;
+                videoElement.style.display = "block";
+                
+                // Zeige den iOS-Freigabe-Button an
+                playBtn.style.display = "block";
             });
+        });
+    }
+
+    // iOS-spezifische Freigabe durch echte Benutzerinteraktion
+    function forcePlayVideo() {
+        videoElement.play().then(() => {
+            statusText.innerText = "Live-Stream aktiv!";
+            playBtn.style.display = "none"; // Button ausblenden, wenn das Video läuft
+        }).catch(err => {
+            statusText.innerText = "Abspielfehler: " + err.message;
         });
     }
 
@@ -170,17 +195,16 @@
     async function switchCamera() {
         currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
         await getCameraStream();
-        statusText.innerText = "Kamera gewechselt! Bitte lade das Empfänger-iPad neu, um den Stream zu aktualisieren.";
+        statusText.innerText = "Kamera gewechselt! Bitte lade den Empfänger neu.";
     }
 
     // Zoom-Logik (CSS-Skalierung)
     function applyZoom(value) {
         currentZoom = value;
-        const video = document.getElementById('remote-video');
-        video.style.transform = `scale(${value})`;
+        videoElement.style.transform = `scale(${value})`;
     }
 
-    // Pinch-to-Zoom Geste (zwei Finger auf dem Display auseinanderziehen)
+    // Pinch-to-Zoom Geste
     const videoContainer = document.getElementById('video-container');
     let initialDist = 0;
 
@@ -210,7 +234,6 @@
 
     videoContainer.addEventListener('touchend', () => { initialDist = 0; });
 
-    // Startet die App automatisch beim Laden der Seite
     window.onload = initConnection;
 </script>
 
