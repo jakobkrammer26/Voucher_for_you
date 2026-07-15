@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iPad CamShare Remote Cockpit</title>
+    <title>iPad CamShare Pro Max (Audio-Update)</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body {
@@ -120,11 +120,6 @@
         input[type="range"] {
             width: 85%;
         }
-
-        /* Versteckt Elemente auf dem Kamera-Sender */
-        .sender-hidden {
-            display: block;
-        }
     </style>
 </head>
 <body>
@@ -132,17 +127,17 @@
 <div class="container">
     <div id="header-area">
         <h1 id="app-title">iPad CamShare Cockpit</h1>
-        <div class="status-box" id="status">Schritt 1: Kamera aktivieren</div>
+        <div class="status-box" id="status">Schritt 1: Kamera & Mikrofon aktivieren</div>
     </div>
 
     <div id="viewports">
-        <video id="remote-video" autoplay playsinline muted></video>
+        <video id="remote-video" autoplay playsinline></video>
         <video id="local-video" autoplay playsinline muted></video>
     </div>
 
     <div class="controls" id="controls-area">
         <div class="btn-row" id="setup-buttons">
-            <button class="btn" id="btn-cam" onclick="initLocalCamera()">1. Kamera aktivieren</button>
+            <button class="btn" id="btn-cam" onclick="initLocalCamera()">1. Kamera & Mikro aktivieren</button>
             <button class="btn btn-blue" id="btn-connect" onclick="startConnection()" disabled style="opacity: 0.4;">2. Koppeln</button>
         </div>
         
@@ -207,17 +202,17 @@
     let currentRotation = 0; 
     let isMirrored = false;
 
-    // 1. Kamera auf dem jeweiligen iPad starten
+    // 1. Kamera und MIKROFON auf dem iPad starten
     async function initLocalCamera() {
         try {
-            statusDiv.innerText = "Kamera wird gestartet...";
+            statusDiv.innerText = "Kamera & Mikrofon werden gestartet...";
             localStream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     facingMode: currentFacingMode,
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 },
-                audio: false
+                audio: true // Hier ist Audio aktiviert
             });
             
             localVideo.srcObject = localStream;
@@ -227,25 +222,24 @@
             
             initPeer();
         } catch (err) {
-            statusDiv.innerText = "Kamera-Fehler: " + err.message;
+            statusDiv.innerText = "Rechte verweigert: " + err.message;
         }
     }
 
-    // 2. PeerJS-Server initialisieren
+    // 2. PeerJS-Verbindung empfangen
     function initPeer() {
         peer = new Peer(RAUM_ID);
 
         peer.on('open', (id) => {
-            statusDiv.innerHTML = `Bereit! Code dieses iPads: <b style="color:#30d158; font-size:16px;">${ZUFALLS_ID}</b><br>Gib diesen auf dem Steuerungs-iPad ein.`;
+            statusDiv.innerHTML = `Bereit! Code dieses iPads: <b style="color:#30d158; font-size:16px;">${ZUFALLS_ID}</b><br>Gib diesen auf dem Empfänger-iPad ein.`;
         });
 
         peer.on('call', (call) => {
-            // SENDER-MODUS: Ein anderes iPad hat uns angerufen.
-            // Wir blenden alle Steuerungen aus, da dieses iPad ab jetzt nur noch filmt!
+            // SENDER-MODUS: Kamera-iPad wird stummgeschaltet und passiv
             transformToSenderMode();
             
             currentCall = call;
-            call.answer(localStream);
+            call.answer(localStream); // Antwortet mit Bild & Ton
             
             call.on('stream', (incomingStream) => {
                 showRemoteStream(incomingStream);
@@ -266,11 +260,11 @@
         const zielID = "ipad-rtc-" + zielCode.trim();
         statusDiv.innerText = "Verbinde mit Kamera...";
 
-        // Datenkanal öffnen
+        // Steuerkanal aufbauen
         dataConnection = peer.connect(zielID);
         setupDataListener();
 
-        // Anruf starten
+        // Audio- und Video-Call starten
         currentCall = peer.call(zielID, localStream);
         currentCall.on('stream', (incomingStream) => {
             transformToReceiverMode();
@@ -278,27 +272,27 @@
         });
     }
 
-    // Wandelt dieses iPad in ein reines Kamera-Auge um (Keine Knöpfe mehr)
+    // Wandelt das filmende iPad in ein passives Auge um
     function transformToSenderMode() {
         setupButtons.style.display = "none";
-        controlsArea.style.display = "none"; // Schaltet alle Knöpfe ab
-        localVideo.style.width = "100%"; // Lokale Kamera füllt den ganzen Bildschirm
+        controlsArea.style.display = "none"; 
+        localVideo.style.width = "100%"; 
         localVideo.style.height = "100%";
         localVideo.style.right = "0";
         localVideo.style.bottom = "0";
         localVideo.style.borderRadius = "0";
         localVideo.style.border = "none";
-        statusDiv.innerHTML = "🔴 <b>Dieses iPad sendet live und wird ferngesteuert.</b>";
+        statusDiv.innerHTML = "🔴 <b>Dieses iPad überträgt live (Bild & Ton).</b>";
     }
 
-    // Wandelt dieses iPad in das Steuerungs-Cockpit um
+    // Aktiviert das Dashboard auf dem Empfänger-iPad
     function transformToReceiverMode() {
         setupButtons.style.display = "none";
-        receiverDashboard.style.display = "block"; // Zeigt alle Remote-Knöpfe
-        localVideo.style.display = "none"; // Blendet die eigene kleine Kamera aus
+        receiverDashboard.style.display = "block"; 
+        localVideo.style.display = "none"; 
     }
 
-    // Lauscht auf Steuerungsbefehle (wird auf dem Kamera-iPad ausgeführt)
+    // Empfängt die Fernsteuerungssignale auf dem Sender
     function setupDataListener() {
         dataConnection.on('data', async (data) => {
             if (data === 'switch-camera') {
@@ -310,7 +304,7 @@
         });
     }
 
-    // Befehle an das Kamera-iPad senden
+    // Fernsteuerungs-Befehle senden
     function requestRemoteCameraSwitch() {
         if (dataConnection && dataConnection.open) {
             dataConnection.send('switch-camera');
@@ -323,11 +317,11 @@
             dataConnection.send('toggle-torch');
             torchActive = !torchActive;
             document.getElementById('torch-status').innerText = torchActive ? "🟡" : "💡";
-            statusDiv.innerText = torchActive ? "Licht drüben eingeschaltet" : "Licht drüben ausgeschaltet";
+            statusDiv.innerText = torchActive ? "Licht drüben an" : "Licht drüben aus";
         }
     }
 
-    // Führt das eigentliche Ein-/Ausschalten der Taschenlampe auf dem Kamera-iPad aus
+    // Lokales Licht schalten (nur falls Hardware es unterstützt)
     async function toggleLocalTorch() {
         if (!localStream) return;
         const videoTrack = localStream.getVideoTracks()[0];
@@ -339,30 +333,35 @@
                 await videoTrack.applyConstraints({
                     advanced: [{ torch: !currentTorchState }]
                 });
-            } else {
-                console.log("Gerät unterstützt keine Taschenlampe im Browser.");
             }
         } catch (err) {
-            console.log("Fehler beim Taschenlampen-Zugriff: " + err.message);
+            console.log("Fehler Taschenlampe: " + err.message);
         }
     }
 
+    // Zeigt den Videostream mit Ton an
     function showRemoteStream(stream) {
         remoteStreamObject = stream;
         remoteVideo.srcObject = stream;
-        statusDiv.innerText = "Verbunden! Live-Stream läuft.";
+        
+        // Ton auf dem Empfänger aktivieren (darf nicht stumm sein!)
+        remoteVideo.muted = false; 
+        
+        statusDiv.innerText = "Verbunden! Stream und Audio aktiv.";
         remoteVideo.style.display = "block";
         
+        // iOS-Sperre umgehen
         remoteVideo.play().catch(() => {
-            statusDiv.innerText = "Tippe auf den Bildschirm zum Abspielen!";
+            statusDiv.innerText = "Tippe auf den Bildschirm für Bild & Ton!";
             remoteVideo.onclick = () => {
+                remoteVideo.muted = false; 
                 remoteVideo.play();
-                statusDiv.innerText = "Verbunden! Live-Stream läuft.";
+                statusDiv.innerText = "Verbunden! Stream und Audio aktiv.";
             };
         });
     }
 
-    // --- KAMERA WECHSELN ---
+    // Kamera wechseln
     async function switchCamera() {
         if (!localStream) return;
         currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
@@ -370,7 +369,7 @@
         try {
             const newStream = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: currentFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
-                audio: false
+                audio: true
             });
 
             const newTrack = newStream.getVideoTracks()[0];
@@ -387,7 +386,7 @@
             localStream.getTracks().forEach(track => track.stop());
             localStream = newStream;
         } catch (err) {
-            statusDiv.innerText = "Fehler beim Kamerawechsel: " + err.message;
+            statusDiv.innerText = "Kamera-Wechsel-Fehler: " + err.message;
         }
     }
 
@@ -407,13 +406,13 @@
 
         const dataURL = captureCanvas.toDataURL('image/png');
         const link = document.createElement('a');
-        link.download = `iPad_CamShare_Foto_${Date.now()}.png`;
+        link.download = `Foto_${Date.now()}.png`;
         link.href = dataURL;
         link.click();
-        statusDiv.innerText = "Foto erfolgreich auf diesem iPad gespeichert!";
+        statusDiv.innerText = "Foto auf diesem Gerät gespeichert!";
     }
 
-    // --- VIDEO AUFZEICHNEN ---
+    // --- VIDEO AUFZEICHNEN (inklusive Ton) ---
     function toggleRecording() {
         const streamToRecord = remoteStreamObject || localStream;
         if (!streamToRecord) return;
@@ -441,17 +440,17 @@
                 const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
-                link.download = `iPad_CamShare_Video_${Date.now()}.mp4`;
+                link.download = `Video_${Date.now()}.mp4`;
                 link.href = url;
                 link.click();
-                statusDiv.innerText = "Aufnahme auf diesem iPad gespeichert!";
+                statusDiv.innerText = "Aufnahme auf diesem Gerät gespeichert!";
             };
 
             mediaRecorder.start();
             isRecording = true;
             btnRecord.innerText = "⏹ Aufnahme stoppen";
             btnRecord.style.backgroundColor = "#ff3b30";
-            statusDiv.innerText = "🔴 Videoaufnahme läuft...";
+            statusDiv.innerText = "🔴 Video- & Tonaufnahme läuft...";
         } else {
             mediaRecorder.stop();
             isRecording = false;
@@ -460,7 +459,7 @@
         }
     }
 
-    // --- TRANSFORMATIONEN (DREHEN & SPIEGELN) ---
+    // --- TRANSFORMATIONEN ---
     function rotateVideo() {
         currentRotation = (currentRotation + 90) % 360;
         updateVideoTransform();
@@ -499,7 +498,7 @@
         }
     }
 
-    // Pinch-To-Zoom
+    // Pinch-To-Zoom Gestensteuerung
     let initialDist = 0;
     viewports.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
