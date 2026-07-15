@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>iPad CamShare Pro Max (Audio-Update)</title>
+    <title>iPad CamShare Ultimate Cockpit</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         body {
@@ -28,13 +28,13 @@
             width: 100%;
             justify-content: space-between;
         }
-        h1 { color: #30d158; font-size: 22px; margin: 5px 0; }
+        h1 { color: #30d158; font-size: 20px; margin: 5px 0; }
         
         .status-box {
             background: #1c1c1e;
-            padding: 8px;
+            padding: 6px;
             border-radius: 10px;
-            font-size: 12px;
+            font-size: 11px;
             margin-bottom: 5px;
             border: 1px solid #2c2c2e;
         }
@@ -42,16 +42,16 @@
         /* Buttons im iOS-Look */
         .btn-row {
             display: flex;
-            gap: 8px;
-            margin-bottom: 5px;
+            gap: 6px;
+            margin-bottom: 4px;
         }
         .btn {
             background-color: #30d158;
             color: black;
             font-weight: bold;
             border: none;
-            padding: 12px;
-            font-size: 14px;
+            padding: 10px;
+            font-size: 13px;
             border-radius: 10px;
             cursor: pointer;
             flex: 1;
@@ -62,6 +62,7 @@
         .btn-red { background-color: #ff453a; color: white; }
         .btn-gray { background-color: #2c2c2e; color: white; }
         .btn-orange { background-color: #ff9f0a; color: black; }
+        .btn-purple { background-color: #af52de; color: white; }
         
         /* Video-Bereich */
         #viewports {
@@ -82,7 +83,7 @@
             height: 100%;
             object-fit: contain;
             transform-origin: center;
-            transition: transform 0.2s ease;
+            transition: transform 0.2s ease, filter 0.1s ease;
         }
 
         /* Kleines lokales Vorschaufenster (Bild-in-Bild) */
@@ -99,26 +100,47 @@
             background: #000;
         }
 
+        /* Schwarzer Vorhang für Energiesparmodus am Sender */
+        #saver-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
         .controls {
-            padding: 10px 0;
+            padding: 5px 0;
             background: #000;
         }
         
         .control-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-top: 5px;
+            gap: 6px;
+            margin-top: 4px;
         }
 
         .slider-box {
-            margin-top: 8px;
+            margin-top: 6px;
             background: #1c1c1e;
-            padding: 8px;
+            padding: 6px;
             border-radius: 10px;
+            font-size: 11px;
+        }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 4px 0;
         }
         input[type="range"] {
-            width: 85%;
+            width: 70%;
         }
     </style>
 </head>
@@ -126,41 +148,57 @@
 
 <div class="container">
     <div id="header-area">
-        <h1 id="app-title">iPad CamShare Cockpit</h1>
-        <div class="status-box" id="status">Schritt 1: Kamera & Mikrofon aktivieren</div>
+        <h1 id="app-title">iPad CamShare Ultimate</h1>
+        <div class="status-box" id="status">Schritt 1: Stream-Qualität wählen & Kamera aktivieren</div>
     </div>
 
     <div id="viewports">
         <video id="remote-video" autoplay playsinline></video>
         <video id="local-video" autoplay playsinline muted></video>
+        
+        <div id="saver-overlay">
+            <div style="font-size: 12px; color: #1c1c1e; cursor: pointer;" onclick="toggleLocalSaver()">⚙️</div>
+        </div>
     </div>
 
     <div class="controls" id="controls-area">
         <div class="btn-row" id="setup-buttons">
-            <button class="btn" id="btn-cam" onclick="initLocalCamera()">1. Kamera & Mikro aktivieren</button>
+            <select id="quality-select" style="background:#2c2c2e; color:white; border-radius:10px; padding:10px; border:none; margin-right:5px; font-weight:bold;">
+                <option value="hd">HD (720p)</option>
+                <option value="sd">SD (360p)</option>
+            </select>
+            <button class="btn" id="btn-cam" onclick="initLocalCamera()">1. Starten</button>
             <button class="btn btn-blue" id="btn-connect" onclick="startConnection()" disabled style="opacity: 0.4;">2. Koppeln</button>
         </div>
         
         <div id="receiver-dashboard" style="display: none;">
             <div class="btn-row">
-                <button class="btn btn-gray" style="background-color: #545456;" onclick="takePhoto()">📸 Foto machen</button>
-                <button class="btn btn-red" id="btn-record" onclick="toggleRecording()">🔴 Aufnahme starten</button>
+                <button class="btn btn-gray" style="background-color: #545456;" onclick="takePhoto()">📸 Foto</button>
+                <button class="btn btn-red" id="btn-record" onclick="toggleRecording()">🔴 Aufnahme</button>
+                <button class="btn btn-purple" id="btn-mute-self" onclick="toggleLocalMute()">🔊 Mein Mikro: An</button>
             </div>
             
             <div class="control-grid">
-                <button class="btn btn-gray" onclick="rotateVideo()">🔄 Drehen (90°)</button>
+                <button class="btn btn-gray" onclick="rotateVideo()">🔄 90° Drehen</button>
                 <button class="btn btn-gray" onclick="mirrorVideo()">🪞 Spiegeln</button>
-                <button class="btn btn-orange" onclick="requestRemoteCameraSwitch()">📷 Cam drüben wechseln</button>
+                <button class="btn btn-orange" onclick="requestRemoteCameraSwitch()">📷 Cam drüben</button>
             </div>
 
-            <div class="control-grid" style="margin-top: 5px;">
+            <div class="control-grid" style="margin-top: 4px;">
                 <button class="btn btn-gray" onclick="requestRemoteTorch()"><span id="torch-status">💡</span> Licht drüben</button>
-                <button class="btn btn-gray" style="grid-column: span 2;" onclick="toggleFullscreen()">📺 Vollbild-Modus</button>
+                <button class="btn btn-gray" onclick="requestRemoteSaver()">📱 Monitor drüben aus</button>
+                <button class="btn btn-gray" onclick="toggleFullscreen()">📺 Vollbild</button>
             </div>
             
             <div class="slider-box">
-                <span style="font-size: 12px; color: #aeaeb2;">Zoom:</span><br>
-                <input type="range" id="zoom-slider" min="1" max="4" step="0.1" value="1" oninput="applyZoom(this.value)">
+                <div class="slider-row">
+                    <span>Zoom:</span>
+                    <input type="range" id="zoom-slider" min="1" max="4" step="0.1" value="1" oninput="applyZoom(this.value)">
+                </div>
+                <div class="slider-row">
+                    <span>Belichtung:</span>
+                    <input type="range" id="brightness-slider" min="50" max="200" step="5" value="100" oninput="applyBrightness(this.value)">
+                </div>
             </div>
         </div>
     </div>
@@ -179,10 +217,13 @@
     const btnConnect = document.getElementById('btn-connect');
     const btnRecord = document.getElementById('btn-record');
     const zoomSlider = document.getElementById('zoom-slider');
+    const brightnessSlider = document.getElementById('brightness-slider');
     const captureCanvas = document.getElementById('capture-canvas');
     const controlsArea = document.getElementById('controls-area');
     const setupButtons = document.getElementById('setup-buttons');
     const receiverDashboard = document.getElementById('receiver-dashboard');
+    const saverOverlay = document.getElementById('saver-overlay');
+    const qualitySelect = document.getElementById('quality-select');
 
     let peer = null;
     let localStream = null;
@@ -191,6 +232,7 @@
     let dataConnection = null; 
     let currentFacingMode = "environment"; 
     let torchActive = false;
+    let myMicrophoneMuted = false;
 
     // Aufnahme-Variablen
     let mediaRecorder = null;
@@ -201,45 +243,49 @@
     let currentZoom = 1;
     let currentRotation = 0; 
     let isMirrored = false;
+    let currentBrightness = 100;
 
-    // 1. Kamera und MIKROFON auf dem iPad starten
+    // 1. Kamera und Mikrofon starten
     async function initLocalCamera() {
+        const quality = qualitySelect.value;
+        const videoWidth = quality === 'hd' ? 1280 : 640;
+        const videoHeight = quality === 'hd' ? 720 : 360;
+
         try {
-            statusDiv.innerText = "Kamera & Mikrofon werden gestartet...";
+            statusDiv.innerText = "Verbindung mit Kamera & Mikrofon...";
             localStream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     facingMode: currentFacingMode,
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    width: { ideal: videoWidth },
+                    height: { ideal: videoHeight }
                 },
-                audio: true // Hier ist Audio aktiviert
+                audio: true 
             });
             
             localVideo.srcObject = localStream;
             btnCam.style.display = "none";
+            qualitySelect.style.display = "none";
             btnConnect.disabled = false;
             btnConnect.style.opacity = "1";
             
             initPeer();
         } catch (err) {
-            statusDiv.innerText = "Rechte verweigert: " + err.message;
+            statusDiv.innerText = "Fehler: " + err.message;
         }
     }
 
-    // 2. PeerJS-Verbindung empfangen
+    // 2. PeerJS initialisieren
     function initPeer() {
         peer = new Peer(RAUM_ID);
 
         peer.on('open', (id) => {
-            statusDiv.innerHTML = `Bereit! Code dieses iPads: <b style="color:#30d158; font-size:16px;">${ZUFALLS_ID}</b><br>Gib diesen auf dem Empfänger-iPad ein.`;
+            statusDiv.innerHTML = `Bereit! Code: <b style="color:#30d158; font-size:16px;">${ZUFALLS_ID}</b><br>Trage diese ID auf dem Empfänger-iPad ein.`;
         });
 
         peer.on('call', (call) => {
-            // SENDER-MODUS: Kamera-iPad wird stummgeschaltet und passiv
             transformToSenderMode();
-            
             currentCall = call;
-            call.answer(localStream); // Antwortet mit Bild & Ton
+            call.answer(localStream);
             
             call.on('stream', (incomingStream) => {
                 showRemoteStream(incomingStream);
@@ -252,19 +298,17 @@
         });
     }
 
-    // 3. Aktiv mit dem Kamera-iPad verbinden
+    // 3. Verbindung herstellen
     function startConnection() {
         const zielCode = prompt("Gib den 4-stelligen Code des Kamera-iPads ein:");
         if (!zielCode) return;
 
         const zielID = "ipad-rtc-" + zielCode.trim();
-        statusDiv.innerText = "Verbinde mit Kamera...";
+        statusDiv.innerText = "Verbinde mit Sender...";
 
-        // Steuerkanal aufbauen
         dataConnection = peer.connect(zielID);
         setupDataListener();
 
-        // Audio- und Video-Call starten
         currentCall = peer.call(zielID, localStream);
         currentCall.on('stream', (incomingStream) => {
             transformToReceiverMode();
@@ -272,7 +316,7 @@
         });
     }
 
-    // Wandelt das filmende iPad in ein passives Auge um
+    // Schaltet das Sender-iPad in den passiven Modus
     function transformToSenderMode() {
         setupButtons.style.display = "none";
         controlsArea.style.display = "none"; 
@@ -282,17 +326,17 @@
         localVideo.style.bottom = "0";
         localVideo.style.borderRadius = "0";
         localVideo.style.border = "none";
-        statusDiv.innerHTML = "🔴 <b>Dieses iPad überträgt live (Bild & Ton).</b>";
+        statusDiv.innerHTML = "🔴 <b>Live-Übertragung läuft.</b> (Das iPad wird ferngesteuert)";
     }
 
-    // Aktiviert das Dashboard auf dem Empfänger-iPad
+    // Schaltet das Empfänger-iPad in das Kontrollzentrum
     function transformToReceiverMode() {
         setupButtons.style.display = "none";
         receiverDashboard.style.display = "block"; 
         localVideo.style.display = "none"; 
     }
 
-    // Empfängt die Fernsteuerungssignale auf dem Sender
+    // Empfängt Befehle auf dem Sender-iPad
     function setupDataListener() {
         dataConnection.on('data', async (data) => {
             if (data === 'switch-camera') {
@@ -301,10 +345,13 @@
             if (data === 'toggle-torch') {
                 toggleLocalTorch();
             }
+            if (data === 'toggle-saver') {
+                toggleLocalSaver();
+            }
         });
     }
 
-    // Fernsteuerungs-Befehle senden
+    // Remote-Befehle vom Empfänger senden
     function requestRemoteCameraSwitch() {
         if (dataConnection && dataConnection.open) {
             dataConnection.send('switch-camera');
@@ -317,11 +364,27 @@
             dataConnection.send('toggle-torch');
             torchActive = !torchActive;
             document.getElementById('torch-status').innerText = torchActive ? "🟡" : "💡";
-            statusDiv.innerText = torchActive ? "Licht drüben an" : "Licht drüben aus";
+            statusDiv.innerText = torchActive ? "Licht drüben eingeschaltet" : "Licht drüben ausgeschaltet";
         }
     }
 
-    // Lokales Licht schalten (nur falls Hardware es unterstützt)
+    function requestRemoteSaver() {
+        if (dataConnection && dataConnection.open) {
+            dataConnection.send('toggle-saver');
+            statusDiv.innerText = "Standby-Befehl gesendet...";
+        }
+    }
+
+    // Lokaler Bildschirmschoner (schwarzer Bildschirm)
+    function toggleLocalSaver() {
+        if (saverOverlay.style.display === "flex") {
+            saverOverlay.style.display = "none";
+        } else {
+            saverOverlay.style.display = "flex";
+        }
+    }
+
+    // Taschenlampe ansteuern
     async function toggleLocalTorch() {
         if (!localStream) return;
         const videoTrack = localStream.getVideoTracks()[0];
@@ -339,36 +402,50 @@
         }
     }
 
-    // Zeigt den Videostream mit Ton an
+    // Eigenes Mikrofon stummschalten (Gegensprech-Funktion)
+    function toggleLocalMute() {
+        if (!localStream) return;
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) {
+            myMicrophoneMuted = !myMicrophoneMuted;
+            audioTrack.enabled = !myMicrophoneMuted;
+            const btn = document.getElementById('btn-mute-self');
+            btn.innerText = myMicrophoneMuted ? "🔇 Mein Mikro: Aus" : "🔊 Mein Mikro: An";
+            btn.style.backgroundColor = myMicrophoneMuted ? "#545456" : "#af52de";
+        }
+    }
+
+    // Stream abspielen
     function showRemoteStream(stream) {
         remoteStreamObject = stream;
         remoteVideo.srcObject = stream;
-        
-        // Ton auf dem Empfänger aktivieren (darf nicht stumm sein!)
         remoteVideo.muted = false; 
         
-        statusDiv.innerText = "Verbunden! Stream und Audio aktiv.";
+        statusDiv.innerText = "Verbunden! Live-Kanal aktiv.";
         remoteVideo.style.display = "block";
         
-        // iOS-Sperre umgehen
         remoteVideo.play().catch(() => {
-            statusDiv.innerText = "Tippe auf den Bildschirm für Bild & Ton!";
+            statusDiv.innerText = "Tippe auf den Bildschirm für Ton & Bild!";
             remoteVideo.onclick = () => {
                 remoteVideo.muted = false; 
                 remoteVideo.play();
-                statusDiv.innerText = "Verbunden! Stream und Audio aktiv.";
+                statusDiv.innerText = "Verbunden! Live-Kanal aktiv.";
             };
         });
     }
 
-    // Kamera wechseln
+    // Kamera umschalten
     async function switchCamera() {
         if (!localStream) return;
         currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
 
         try {
+            const quality = qualitySelect.value;
+            const videoWidth = quality === 'hd' ? 1280 : 640;
+            const videoHeight = quality === 'hd' ? 720 : 360;
+
             const newStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: currentFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+                video: { facingMode: currentFacingMode, width: { ideal: videoWidth }, height: { ideal: videoHeight } },
                 audio: true
             });
 
@@ -386,11 +463,11 @@
             localStream.getTracks().forEach(track => track.stop());
             localStream = newStream;
         } catch (err) {
-            statusDiv.innerText = "Kamera-Wechsel-Fehler: " + err.message;
+            statusDiv.innerText = "Fehler beim Kamerawechsel: " + err.message;
         }
     }
 
-    // --- FOTO AUFNEHMEN ---
+    // Foto machen
     function takePhoto() {
         const video = remoteVideo.srcObject ? remoteVideo : localVideo;
         if (!video.srcObject) return;
@@ -402,6 +479,10 @@
         ctx.translate(captureCanvas.width / 2, captureCanvas.height / 2);
         if (isMirrored) ctx.scale(-1, 1);
         ctx.rotate((currentRotation * Math.PI) / 180);
+        
+        // CSS Belichtung auf dem Foto anwenden
+        ctx.filter = `brightness(${currentBrightness}%)`;
+        
         ctx.drawImage(video, -captureCanvas.width / 2, -captureCanvas.height / 2, captureCanvas.width, captureCanvas.height);
 
         const dataURL = captureCanvas.toDataURL('image/png');
@@ -409,10 +490,10 @@
         link.download = `Foto_${Date.now()}.png`;
         link.href = dataURL;
         link.click();
-        statusDiv.innerText = "Foto auf diesem Gerät gespeichert!";
+        statusDiv.innerText = "Foto gespeichert!";
     }
 
-    // --- VIDEO AUFZEICHNEN (inklusive Ton) ---
+    // Video aufnehmen
     function toggleRecording() {
         const streamToRecord = remoteStreamObject || localStream;
         if (!streamToRecord) return;
@@ -443,23 +524,23 @@
                 link.download = `Video_${Date.now()}.mp4`;
                 link.href = url;
                 link.click();
-                statusDiv.innerText = "Aufnahme auf diesem Gerät gespeichert!";
+                statusDiv.innerText = "Aufnahme gespeichert!";
             };
 
             mediaRecorder.start();
             isRecording = true;
-            btnRecord.innerText = "⏹ Aufnahme stoppen";
+            btnRecord.innerText = "⏹ Stoppen";
             btnRecord.style.backgroundColor = "#ff3b30";
-            statusDiv.innerText = "🔴 Video- & Tonaufnahme läuft...";
+            statusDiv.innerText = "🔴 Aufnahme läuft...";
         } else {
             mediaRecorder.stop();
             isRecording = false;
-            btnRecord.innerText = "🔴 Aufnahme starten";
+            btnRecord.innerText = "🔴 Aufnahme";
             btnRecord.style.backgroundColor = "#ff453a";
         }
     }
 
-    // --- TRANSFORMATIONEN ---
+    // Transformationen
     function rotateVideo() {
         currentRotation = (currentRotation + 90) % 360;
         updateVideoTransform();
@@ -468,6 +549,11 @@
     function mirrorVideo() {
         isMirrored = !isMirrored;
         updateVideoTransform();
+    }
+
+    function applyBrightness(value) {
+        currentBrightness = value;
+        remoteVideo.style.filter = `brightness(${value}%)`;
     }
 
     function updateVideoTransform() {
@@ -480,7 +566,7 @@
         updateVideoTransform();
     }
 
-    // Vollbild-Modus
+    // Vollbild
     function toggleFullscreen() {
         const header = document.getElementById('header-area');
         const controls = document.getElementById('controls-area');
@@ -498,7 +584,7 @@
         }
     }
 
-    // Pinch-To-Zoom Gestensteuerung
+    // Pinch-To-Zoom
     let initialDist = 0;
     viewports.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
