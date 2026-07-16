@@ -1,0 +1,11 @@
+{
+  "name": "iPad CamShare Ultimate",
+  "description": "A high-performance P2P video stream sharing and camera remote control interface optimized for iPads and mobile devices.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
